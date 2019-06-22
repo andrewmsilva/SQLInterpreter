@@ -1,0 +1,15 @@
+if
+elseif
+else
+while
+for
+switch
+case
+import
+define
+new
+and
+or
+<S>::=a<variable>|b<variable>|c<variable>|d<variable>|e<variable>|f<variable>|g<variable>|h<variable>|i<variable>|j<variable>|k<variable>|l<variable>|m<variable>|n<variable>|o<variable>|p<variable>|q<variable>|r<variable>|s<variable>|t<variable>|u<variable>|v<variable>|w<variable>|x<variable>|y<variable>|z<variable>|0<number>|1<number>|2<number>|3<number>|4<number>|5<number>|6<number>|7<number>|8<number>|9<number>
+<variable>::=a<variable>|b<variable>|c<variable>|d<variable>|e<variable>|f<variable>|g<variable>|h<variable>|i<variable>|j<variable>|k<variable>|l<variable>|m<variable>|n<variable>|o<variable>|p<variable>|q<variable>|r<variable>|s<variable>|t<variable>|u<variable>|v<variable>|w<variable>|x<variable>|y<variable>|z<variable>|0<variable>|1<variable>|2<variable>|3<variable>|4<variable>|5<variable>|6<variable>|7<variable>|8<variable>|9<variable>|
+<number>::=0<number>|1<number>|2<number>|3<number>|4<number>|5<number>|6<number>|7<number>|8<number>|9<number>|
