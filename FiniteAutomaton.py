@@ -1,5 +1,3 @@
-import json
-
 class FiniteAutomaton(object):
     # Presets
     __INITIAL_STATE = '<S>'
@@ -22,6 +20,7 @@ class FiniteAutomaton(object):
         self.__Determinize()
 
         # 5th step: remove unreacheble and dead states
+        self.Show()
         self.__RemoveUnreachebleDead()
 
         # 6th step: map unmapped transitions with a error state
@@ -47,7 +46,7 @@ class FiniteAutomaton(object):
         if not state in self.__FA:
             self.__FA[state] = {self.__IS_FINAL: final}
             for char in self.__ALPHABET:
-                self.__FA[state][char] = []
+                self.__FA[state][char] = None
 
     def __AddChar(self, char):
         # Checking if the character already exists in the ALPHABET
@@ -55,11 +54,13 @@ class FiniteAutomaton(object):
             self.__ALPHABET.append(char)
             for state in self.__FA:
                 if state != self.__IS_FINAL:
-                    self.__FA[state][char] = []
+                    self.__FA[state][char] = None
 
     def __AddNextState(self, current_state, char, next_state):
         # Checking if the next_state already exists in the FA for the current_state and character
-        if not next_state in self.__FA[current_state][char]:
+        if not self.__FA[current_state][char]:
+            self.__FA[current_state][char] = [next_state]
+        elif  not next_state in self.__FA[current_state][char]:
             self.__FA[current_state][char].append(next_state)
             try:
                 self.__FA[current_state][char].remove(ERROR_STATE)
@@ -125,16 +126,6 @@ class FiniteAutomaton(object):
                 self.__AddNextState(state, char, next_state)
             else:
                 self.__FA[state][self.__IS_FINAL] = True
-        
-    def __CheckToken(self, token):
-        current_state = self.__INITIAL_STATE
-        for char in token:
-            try:
-                current_state = self.__FA[current_state][char][0]
-            except:
-                current_state = self.__ERROR_STATE
-                break
-        return current_state
     
     ''' Methods of 3rd step '''
     def __MergeStates(self, state, next_state):
@@ -145,8 +136,12 @@ class FiniteAutomaton(object):
         for char in self.__ALPHABET:
             if char != '' and self.__FA[next_state][char]:
                 for next_next_state in self.__FA[next_state][char]:
-                    if not next_next_state in self.__FA[state][char]:
-                        self.__FA[state][char].append(next_next_state)
+                    if self.__FA[state][char] and not next_next_state in self.__FA[state][char]:
+                        if isinstance(self.__FA[state][char], list):
+                            self.__FA[state][char].append(next_next_state)
+                        else:
+                            self.__FA[state][char] = [self.__FA[state][char], next_next_state]
+
                         if self.__UNION in next_next_state:
                             states = next_next_state[1:len(next_next_state)-1].split(self.__UNION)
                             for s in states:
@@ -154,17 +149,13 @@ class FiniteAutomaton(object):
                                     self.__FA[state][char].remove(s)
                                 except:
                                     pass
-                        try:
-                            self.__FA[state][char].remove(self.__ERROR_STATE)
-                        except:
-                            pass
 
     def __CheckEpslon(self, state):
-        if '' in self.__FA[state] and not self.__FA[state]['']:
+        if '' in self.__FA[state] and isinstance(self.__FA[state][''], list):
             for next_state in self.__FA[state]['']:
                 self.__CheckEpslon(next_state)
                 self.__MergeStates(state, next_state)
-                self.__FA[state][''] = []
+                self.__FA[state][''] = None
 
     def __RemoveEpslon(self):
         for state in self.__FA:
@@ -180,6 +171,7 @@ class FiniteAutomaton(object):
             if char != self.__IS_FINAL:
                 # Verifying if this state is a united_state and which states it's associated with
                 next_states = self.__FA[state][char]
+                if isinstance(next_states, str) or not next_states: continue
                 for next_state in next_states:
                     if self.__UNION in next_state:
                         states = next_state[1:len(next_state)-1].split(self.__UNION)
@@ -201,8 +193,10 @@ class FiniteAutomaton(object):
                     self.__AddState(united_states, final=False)
                     for next_state in next_states:
                         self.__MergeStates(united_states, next_state)
-                    self.__FA[state][char] = [united_states]
+                    self.__FA[state][char] = united_states
                     self.__DeterminizeState(united_states)
+                elif len(next_states) == 1:
+                    self.__FA[state][char] = next_states[0]
 
     def __Determinize(self):
         FA = self.__FA.copy()
@@ -210,9 +204,21 @@ class FiniteAutomaton(object):
             self.__DeterminizeState(state)
     
     ''' Methods of 5th step '''
-    def __RemoveUnreachebleDead(self):
-        # To do
-        pass
+    def __RemoveUnreachebleDead(self, reacheble=[], verified=[]):
+        if not reacheble:
+            state = self.__INITIAL_STATE
+            for char in self.__FA[state]:
+                if char != self.__IS_FINAL and self.__FA[state][char] and not state in verified and not self.__FA[state][char] in reacheble:
+                    reacheble.append(self.__FA[state][char])                    
+        else:
+            for state in reacheble:
+                for char in self.__FA[state]:
+                    if char != self.__IS_FINAL and self.__FA[state][char] and not state in verified and not self.__FA[state][char] in reacheble:
+                        reacheble.append(self.__FA[state][char])
+                if not state in verified:
+                    verified.append(state)
+                
+        self.__RemoveUnreachebleDead(reacheble, verified)
     
     ''' Methods of 6th step '''
     def __MapErrorState(self):
@@ -220,7 +226,7 @@ class FiniteAutomaton(object):
         for state in self.__FA:
             for char in self.__FA[state]:
                 if not self.__FA[state][char] and char != self.__IS_FINAL:
-                    self.__FA[state][char].append(self.__ERROR_STATE)
+                    self.__FA[state][char] = self.__ERROR_STATE
 
     ''' Methods for test '''
     def Show(self):
@@ -231,7 +237,7 @@ class FiniteAutomaton(object):
         state = self.__INITIAL_STATE
         for char in token:
             try:
-                state = self.__FA[state][char][0]
+                state = self.__FA[state][char]
             except:
                 return self.__ERROR_STATE
         return state
