@@ -16,11 +16,13 @@ class FiniteAutomaton(object):
         # 3rd step: remove epslon transitions
         self.__RemoveEpslon()
 
+        self.Show()
         # 4th step: determinize finite automaton
         self.__Determinize()
 
         # 5th step: remove unreacheble and dead states
         self.__RemoveUnreacheble()
+        self.__RemoveDead()
 
         # 6th step: map unmapped transitions with a error state
         self.__MapErrorState()
@@ -68,7 +70,7 @@ class FiniteAutomaton(object):
 
     def __IsToken(self, string):
         # Settings
-        string        = string[:len(string)-1]
+        string        = string.replace('\n', '')
         length        = len(string)
         current_state = self.__INITIAL_STATE
         next_state    = self.__FIRST_STATE
@@ -99,7 +101,7 @@ class FiniteAutomaton(object):
                             break
 
     def __IsGrammarRule(self, string):
-        string = string[:len(string)-1]
+        string = string.replace('\n', '')
         state, productions = string.split('::=')
         productions = productions.split('|')
 
@@ -207,8 +209,8 @@ class FiniteAutomaton(object):
             self.__DeterminizeState(state)
     
     ''' Methods of 5th step '''
-    def __RemoveUnreacheble(self):
-        reacheble = [self.__INITIAL_STATE]
+    def __GetReachebleStates(self, initial_state=__INITIAL_STATE):
+        reacheble = [initial_state]
         verified = []
         # Verifying all reacheble states
         for state in reacheble:
@@ -218,20 +220,28 @@ class FiniteAutomaton(object):
                     reacheble.append(next_state)
             if not state in verified:
                 verified.append(state)
+        return reacheble
+    
+    def __RemoveUnreacheble(self):
+        reacheble = self.__GetReachebleStates()
         # Removing unreacheble states
         for state in self.__FA.copy():
             if not state in reacheble:
                 del self.__FA[state]
     
     def __RemoveDead(self):
-        dead = []
-        verified = []
         # Getting all final states
-        for state in self.__FA:
-            if not state[self.__IS_FINAL] and not state in dead:
-                dead.append(state)
-        # To be continued
-            
+        for state in self.__FA.copy():
+            if not self.__FA[state][self.__IS_FINAL]:
+                reacheble = self.__GetReachebleStates(state)
+                dead = True
+                for next_state in reacheble:
+                    if dead and self.__FA[next_state][self.__IS_FINAL]:
+                        dead = False
+                if dead:
+                    print(state, ' is dead!')
+                    del self.__FA[state]
+        
     ''' Methods of 6th step '''
     def __MapErrorState(self):
         self.__AddState(self.__ERROR_STATE, True)
