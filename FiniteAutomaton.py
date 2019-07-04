@@ -16,7 +16,6 @@ class FiniteAutomaton(object):
         # 3rd step: remove epslon transitions
         self.__RemoveEpslon()
 
-        self.Show()
         # 4th step: determinize finite automaton
         self.__Determinize()
 
