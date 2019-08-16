@@ -1,15 +1,27 @@
-class FiniteAutomaton(object):
-    # Presets
-    __INITIAL_STATE = '<S>'
-    __ERROR_STATE   = '<error>'
-    __FIRST_STATE   = '<A>'
-    __IS_FINAL      = 'final'
-    __UNION         = '¬'
-    __ALPHABET      = []
-    __FA            = {}
+import pickle
 
-    def __init__(self, file):
-        # 1th and 2nd steps: read file with tokens and regular 
+class FiniteAutomaton(object):
+    # Default settings
+    __INITIAL_STATE   = 0
+    __ERROR_STATE     = -1
+    __RESERVED_STATES = [__ERROR_STATE]
+    __ALPHABET        = []
+    __FA              = {}
+    # Folders
+    __INPUTS_FOLDER  = "set"
+    __RESULTS_FOLDER = "bin"
+    # Files
+    __TOKENS_FILE     = "tokens.txt"
+    __GRAMMATICS_FILE = "grammatics.txt"
+    __RESULTS_FILE    = "finite_automaton.bin"
+
+    def __init__(self):
+        # Trying to load an already created Finite Automaton
+        if not self.__LoadCreated():
+            # Trying to map tokens
+            self.__MapTokens()
+
+        """# 1th and 2nd steps: read file with tokens and regular 
         # grammatics to build a non-deterministic finite automaton
         self.__BuildByFile(file)
 
@@ -24,11 +36,79 @@ class FiniteAutomaton(object):
         self.__RemoveDead()
 
         # 6th step: map unmapped transitions with a error state
-        self.__MapErrorState()
+        self.__MapErrorState()"""
+    
 
     ''' Methods of 1th and 2nd steps '''
     
-    def __BuildByFile(self, file):
+    def __LoadCreated(self):
+        try:
+            file = pickle.open(self.__RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'rb')
+            self.__FA = pickle.load(file)
+            file.close()
+        except:
+            return False
+
+    def __CreateState(self, state, final=False):
+        # Checking if the current_state already exists in the FA
+        if not state in self.__FA:
+            self.__FA[state] = {'final': final}
+            for char in self.__ALPHABET:
+                self.__FA[state][char] = self.__ERROR_STATE
+
+    def __AppendCharacter(self, char):
+        # Checking if the character already exists in the ALPHABET
+        if not char in self.__ALPHABET:
+            self.__ALPHABET.append(char)
+            for state in self.__FA:
+                self.__FA[state][char] = self.__ERROR_STATE
+
+    def __CreateTransition(self, current_state, char, next_state):
+        # Checking if the next_state already exists in the FA for the current_state and character
+        if self.__FA[current_state][char] == self.__ERROR_STATE:
+            self.__FA[current_state][char] = next_state
+        elif self.__FA[current_state][char] != next_state:
+            # DETERMINIZAR AUTOMATICAMENTE
+            if type(self.__FA[current_state][char]) == list:
+                self.__FA[current_state][char].append(next_state)
+            else:
+                self.__FA[current_state][char] = [self.__FA[current_state][char], next_state]
+    
+    def __MapTokens(self):
+        try:
+            file = open(self.__INPUTS_FOLDER+'/'+self.__TOKENS_FILE, 'r')
+            for token in file:
+                # Settings
+                token         = token.replace('\n', '')
+                token_length  = len(token)
+                current_state = self.__INITIAL_STATE
+                # Building token states
+                for i in range(token_length):
+                    char = token[i]
+                    # Appending character to the alphabet
+                    self.__AppendCharacter(char)
+                    # Creating current_state if does not exists
+                    self.__CreateState(current_state)
+                    # Getting an availabe next_state
+                    next_state = current_state+1
+                    while next_state in self.__RESERVED_STATES:
+                        next_state += 1
+                    # Creating next_state if does not exists
+                    if i < token_length-1:
+                        self.__CreateState(next_state)
+                    else:
+                        self.__CreateState(next_state, True)
+                        self.__RESERVED_STATES.append(next_state)
+                    # Creating the transition
+                    self.__CreateTransition(current_state, char, next_state)
+                    # Updating current_state
+                    current_state = next_state
+        except Exception as e:
+            print(e)
+            # Doing nothing if the file with tokens does not exists
+            pass
+
+    """def __BuildByFile(self, file):
         try:
             file = open(file, 'r')
         except:
@@ -40,32 +120,6 @@ class FiniteAutomaton(object):
                 self.__IsGrammarRule(line)
             else:
                 self.__IsToken(line)
-
-    def __AddState(self, state, final=False):
-        # Checking if the current_state already exists in the FA
-        if not state in self.__FA:
-            self.__FA[state] = {self.__IS_FINAL: final}
-            for char in self.__ALPHABET:
-                self.__FA[state][char] = None
-
-    def __AddChar(self, char):
-        # Checking if the character already exists in the ALPHABET
-        if not char in self.__ALPHABET:
-            self.__ALPHABET.append(char)
-            for state in self.__FA:
-                if state != self.__IS_FINAL:
-                    self.__FA[state][char] = None
-
-    def __AddNextState(self, current_state, char, next_state):
-        # Checking if the next_state already exists in the FA for the current_state and character
-        if not self.__FA[current_state][char]:
-            self.__FA[current_state][char] = [next_state]
-        elif  not next_state in self.__FA[current_state][char]:
-            self.__FA[current_state][char].append(next_state)
-            try:
-                self.__FA[current_state][char].remove(ERROR_STATE)
-            except:
-                pass
 
     def __IsToken(self, string):
         # Settings
@@ -247,7 +301,7 @@ class FiniteAutomaton(object):
         for state in self.__FA:
             for char in self.__FA[state]:
                 if not self.__FA[state][char] and char != self.__IS_FINAL:
-                    self.__FA[state][char] = self.__ERROR_STATE
+                    self.__FA[state][char] = self.__ERROR_STATE"""
 
     ''' Methods for test '''
     def Show(self):
@@ -262,12 +316,3 @@ class FiniteAutomaton(object):
             except:
                 return self.__ERROR_STATE
         return state
-
-
-# Testing
-FA = FiniteAutomaton('tokens.txt')
-FA.Show()
-while True:
-    token = input('enter a token: ')
-    state = FA.CheckToken(token)
-    print('state:', state)
