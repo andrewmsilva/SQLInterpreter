@@ -6,6 +6,7 @@ class FiniteAutomaton(object):
     __ERROR_STATE     = -1
     __RESERVED_STATES = [__ERROR_STATE]
     __ALPHABET        = []
+    __STATES_COUNT    = 0
     __FA              = {}
     # Folders
     __INPUTS_FOLDER  = "set"
@@ -17,44 +18,52 @@ class FiniteAutomaton(object):
 
     def __init__(self):
         # Trying to load an already created Finite Automaton
-        if not self.__LoadCreated():
-            # Trying to map tokens
+        if not self.__Load():
+            # Creating error_state
+            self.__CreateState(self.__ERROR_STATE, True)
+            # Mapping transitions
             self.__MapTokens()
+            self.__MapGrammatics()
+            # Handling with erros
+            self.__RemoveEpslonTransitions()
+            self.__Determinize()
+            #self.__RemoveUnreachebleStates()
+            #self.__RemoveDeadStates()
+            # Saving to file
+            #self.__Save()
 
-        """# 1th and 2nd steps: read file with tokens and regular 
-        # grammatics to build a non-deterministic finite automaton
-        self.__BuildByFile(file)
-
-        # 3rd step: remove epslon transitions
-        self.__RemoveEpslon()
-
-        # 4th step: determinize finite automaton
-        self.__Determinize()
-
-        # 5th step: remove unreacheble and dead states
-        self.__RemoveUnreacheble()
-        self.__RemoveDead()
-
-        # 6th step: map unmapped transitions with a error state
-        self.__MapErrorState()"""
-    
-
-    ''' Methods of 1th and 2nd steps '''
-    
-    def __LoadCreated(self):
+    def __Load(self):
         try:
-            file = pickle.open(self.__RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'rb')
+            file = open(self.__RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'rb')
             self.__FA = pickle.load(file)
             file.close()
+            return True
         except:
             return False
+    
+    def __Save(self):
+        file = open(self.__RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'wb')
+        pickle.dump(self.__FA, file)
+        file.close()
+    
+    def __GetAvailableState(self, state=None):
+        if state is None:
+            state = self.__STATES_COUNT-1
+        else:
+            state += 1
+        while state in self.__RESERVED_STATES:
+            state += 1
+        return state
 
-    def __CreateState(self, state, final=False):
-        # Checking if the current_state already exists in the FA
+    def __CreateState(self, state, final=False, parents=[]):
+        # Checking if the state already exists in the FA
         if not state in self.__FA:
-            self.__FA[state] = {'final': final}
+            self.__FA[state] = {'final': final, 'parents': parents}
+            self.__STATES_COUNT += 1
             for char in self.__ALPHABET:
                 self.__FA[state][char] = self.__ERROR_STATE
+        elif not self.__FA[state]['final']:
+            self.__FA[state]['final'] = final
 
     def __AppendCharacter(self, char):
         # Checking if the character already exists in the ALPHABET
@@ -63,36 +72,34 @@ class FiniteAutomaton(object):
             for state in self.__FA:
                 self.__FA[state][char] = self.__ERROR_STATE
 
-    def __CreateTransition(self, current_state, char, next_state):
-        # Checking if the next_state already exists in the FA for the current_state and character
-        if self.__FA[current_state][char] == self.__ERROR_STATE:
-            self.__FA[current_state][char] = next_state
-        elif self.__FA[current_state][char] != next_state:
-            # DETERMINIZAR AUTOMATICAMENTE
-            if type(self.__FA[current_state][char]) == list:
-                self.__FA[current_state][char].append(next_state)
+    def __CreateTransition(self, state, char, next_state):
+        # Checking if the next_state already exists in the FA for the state and character
+        if self.__FA[state][char] == self.__ERROR_STATE:
+            self.__FA[state][char] = next_state
+        elif self.__FA[state][char] != next_state:
+            if type(self.__FA[state][char]) is list:
+                if next_state not in self.__FA[state][char]:
+                    self.__FA[state][char].append(next_state)
             else:
-                self.__FA[current_state][char] = [self.__FA[current_state][char], next_state]
+                self.__FA[state][char] = [self.__FA[state][char], next_state]
     
     def __MapTokens(self):
         try:
             file = open(self.__INPUTS_FOLDER+'/'+self.__TOKENS_FILE, 'r')
             for token in file:
                 # Settings
-                token         = token.replace('\n', '')
-                token_length  = len(token)
-                current_state = self.__INITIAL_STATE
+                token        = token.replace('\n', '')
+                token_length = len(token)
                 # Building token states
+                state = self.__INITIAL_STATE
                 for i in range(token_length):
                     char = token[i]
                     # Appending character to the alphabet
                     self.__AppendCharacter(char)
-                    # Creating current_state if does not exists
-                    self.__CreateState(current_state)
+                    # Creating state if does not exists
+                    self.__CreateState(state)
                     # Getting an availabe next_state
-                    next_state = current_state+1
-                    while next_state in self.__RESERVED_STATES:
-                        next_state += 1
+                    next_state = self.__GetAvailableState(state)
                     # Creating next_state if does not exists
                     if i < token_length-1:
                         self.__CreateState(next_state)
@@ -100,159 +107,102 @@ class FiniteAutomaton(object):
                         self.__CreateState(next_state, True)
                         self.__RESERVED_STATES.append(next_state)
                     # Creating the transition
-                    self.__CreateTransition(current_state, char, next_state)
-                    # Updating current_state
-                    current_state = next_state
-        except Exception as e:
-            print(e)
+                    self.__CreateTransition(state, char, next_state)
+                    # Updating state
+                    state = next_state
+        except:
+            # Doing nothing if the file with tokens does not exists
+            pass
+    
+    def __MapGrammatics(self):
+        try:
+            file = open(self.__INPUTS_FOLDER+'/'+self.__GRAMMATICS_FILE, 'r')
+            for grammatic in file:
+                # Splitting state and its productions
+                grammatic = grammatic.replace('\n', '')
+                state, productions = grammatic.split('::=')
+                productions = productions.split('|')
+                state = int(state.replace('<', '').replace('>', ''))
+
+                self.__CreateState(state)
+                for p in productions:
+                    char = ''
+                    next_state = None
+                    is_char = True
+                    for c in p:
+                        if c == '<' and is_char:
+                            next_state = c
+                            is_char = False
+                        elif c == '>' and not is_char:
+                            next_state += c
+                            is_char = True
+                        elif not is_char:
+                            next_state += c
+                        else:
+                            char = c
+                    self.__AppendCharacter(char)
+                    # Checking if this production is final
+                    if next_state:
+                        next_state = int(next_state.replace('<', '').replace('>', ''))
+                        self.__CreateState(next_state)
+                        self.__CreateTransition(state, char, next_state)
+                    else:
+                        self.__FA[state]['final'] = True
+        except:
             # Doing nothing if the file with tokens does not exists
             pass
 
-    """def __BuildByFile(self, file):
-        try:
-            file = open(file, 'r')
-        except:
-            return None
-    
-        for line in file:
-            length = len(line)
-            if length > 6 and line[0] == '<' and '>' in line:
-                self.__IsGrammarRule(line)
-            else:
-                self.__IsToken(line)
-
-    def __IsToken(self, string):
-        # Settings
-        string        = string.replace('\n', '')
-        length        = len(string)
-        current_state = self.__INITIAL_STATE
-        next_state    = self.__FIRST_STATE
-        final_state   = '<'+string+'>'
-        # Building token states
-        self.__AddState(final_state, True)
-        for i in range(0, len(string)):
-            char  = string[i]
-            # Checking if this is the last character
-            if i == length-1:
-                next_state = final_state
-            # Adding state, char and next_state
-            self.__AddState(current_state)
-            self.__AddChar(char)
-            self.__AddNextState(current_state, char, next_state)
-            # Updating current_state
-            current_state = next_state
-            # Updating next_state
-            if next_state != final_state:
-                while next_state == self.__INITIAL_STATE or next_state == self.__ERROR_STATE or current_state == next_state:
-                    for j in range(len(next_state)-2, -1, -1):
-                        if next_state[j] == 'Z':
-                            next_state = next_state[:j]+'A'+next_state[j+1:]
-                        elif j == 0:
-                            next_state = next_state[j]+'A'+next_state[j+1:]
-                        else:
-                            next_state = next_state[:j]+chr(ord(next_state[j]) + 1)+next_state[j+1:]
-                            break
-
-    def __IsGrammarRule(self, string):
-        string = string.replace('\n', '')
-        state, productions = string.split('::=')
-        productions = productions.split('|')
-
-        self.__AddState(state)
-        for p in productions:
-            char = ''
-            next_state = None
-            is_char = True
-            for c in p:
-                if c == '<' and is_char:
-                    next_state = c
-                    is_char = False
-                elif c == '>' and not is_char:
-                    next_state += c
-                    is_char = True
-                elif not is_char:
-                    next_state += c
-                else:
-                    char = c
-            self.__AddChar(char)
-            # Checking if this production is final
-            if next_state:
-                self.__AddNextState(state, char, next_state)
-            else:
-                self.__FA[state][self.__IS_FINAL] = True
-    
-    ''' Methods of 3rd step '''
     def __MergeStates(self, state, next_state):
         # Checking if the next_state is a final state
-        if self.__FA[next_state][self.__IS_FINAL]:
-            self.__FA[state][self.__IS_FINAL] = True
-        # Merging next_states for each character
-        for char in self.__FA[next_state]:
-            if self.__FA[next_state][char] and char != self.__IS_FINAL:
-                for next_next_state in self.__FA[next_state][char]:
-                    if isinstance(self.__FA[state][char], list):
-                        if not next_next_state in self.__FA[state][char]:
-                            self.__FA[state][char].append(next_next_state)
-                    elif self.__FA[state][char] and next_next_state and self.__FA[state][char] != next_next_state:
-                        self.__FA[state][char] = [self.__FA[state][char], next_next_state]
-                    elif next_next_state:
-                        self.__FA[state][char] = next_next_state
-                    else:
-                        continue                        
-
-                    if self.__UNION in next_next_state:
-                        states = next_next_state[1:len(next_next_state)-1].split(self.__UNION)
-                        for s in states:
-                            try:
-                                self.__FA[state][char].remove('<'+s+'>')
-                            except:
-                                pass
+        if self.__FA[next_state]['final']:
+            self.__FA[state]['final'] = True
+        # Merging states for each character
+        for char in self.__ALPHABET:
+            states = self.__FA[next_state][char]
+            if type(states) is list:
+                for s in states:
+                    self.__CreateTransition(state, char, s)
+            else:
+                self.__CreateTransition(state, char, states)
 
     def __CheckEpslon(self, state):
-        if '' in self.__FA[state] and isinstance(self.__FA[state][''], list):
+        if type(self.__FA[state]['']) is list:
             for next_state in self.__FA[state]['']:
                 self.__CheckEpslon(next_state)
                 self.__MergeStates(state, next_state)
                 self.__FA[state][''] = None
 
-    def __RemoveEpslon(self):
-        for state in self.__FA:
-            self.__CheckEpslon(state)
-            try:
+    def __RemoveEpslonTransitions(self):
+        if '' in self.__ALPHABET:
+            for state in self.__FA:
+                self.__CheckEpslon(state)
                 del self.__FA[state]['']
-            except:
-                pass
+            self.__ALPHABET.remove('')
 
-    ''' Methods of 4th step '''
     def __DeterminizeState(self, state):
-        for char in self.__FA[state]:
-            if char != self.__IS_FINAL:
-                # Verifying if this state is a united_state and which states it's associated with
-                next_states = self.__FA[state][char]
-                if isinstance(next_states, str) or not next_states: continue
-                for next_state in next_states:
-                    if self.__UNION in next_state:
-                        states = next_state[1:len(next_state)-1].split(self.__UNION)
-                        for s in states:
-                            try:
-                                next_states.remove('<'+s+'>')
-                            except:
-                                pass
-                
-                # Verifying if there more then 1 next_states
+        for char in self.__ALPHABET:
+            # Verifying if this transition is not determinized
+            next_states = self.__FA[state][char]
+            if type(next_states) is list:
+                for s in next_states:
+                    # Removing states already included
+                    if s in self.__FA[state]['parents']:
+                        try:
+                            next_states.remove(s)
+                        except:
+                            pass
+                # Verifying if this transition keep not determinized
                 if len(next_states) > 1:
-                    united_states = '<'
-                    for i in range(0, len(next_states)):
-                        next_state = self.__FA[state][char][i]
-                        united_states += next_state[1:len(next_state)-1]
-                        if i < len(self.__FA[state][char])-1:
-                            united_states += self.__UNION
-                    united_states += '>'
-                    self.__AddState(united_states, final=False)
+                    # Creating a new_state with all transitions
+                    new_state = self.__GetAvailableState()
+                    self.__CreateState(new_state, parents=next_states)
                     for next_state in next_states:
-                        self.__MergeStates(united_states, next_state)
-                    self.__FA[state][char] = united_states
-                    self.__DeterminizeState(united_states)
+                        self.__MergeStates(new_state, next_state)
+                    # Updating the transition with the new_state
+                    self.__FA[state][char] = new_state
+                    # Determinizing the new_state
+                    self.__DeterminizeState(new_state)
+                # If there is only one state in this transition, this is already determinized
                 elif len(next_states) == 1:
                     self.__FA[state][char] = next_states[0]
 
@@ -261,7 +211,7 @@ class FiniteAutomaton(object):
         for state in FA:
             self.__DeterminizeState(state)
     
-    ''' Methods of 5th step '''
+    """''' Methods of 5th step '''
     def __GetReachebleStates(self, initial_state=__INITIAL_STATE):
         reacheble = [initial_state]
         verified = []
@@ -308,11 +258,17 @@ class FiniteAutomaton(object):
         for state, value in self.__FA.items():
             print(state, '->', value, '\n')
     
-    def CheckToken(self, token):
-        state = self.__INITIAL_STATE
-        for char in token:
-            try:
-                state = self.__FA[state][char]
-            except:
-                return self.__ERROR_STATE
-        return state
+    def GetInitialState(self):
+        return self.__INITIAL_STATE
+    
+    def GetErrorState(self):
+        return self.__ERROR_STATE
+    
+    def MakeTransition(self, state, char):
+        try:
+            return self.__FA[state][char]
+        except:
+            return self.__ERROR_STATE
+    
+    def IsFinal(self, state):
+        return self.__FA[state]['final']
