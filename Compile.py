@@ -8,11 +8,11 @@ initial_state = FA.GetInitialState()
 error_state = FA.GetErrorState()
 while True:
     token = input('enter a token: ')
-    state = FA.GetInitialState()
+    state = initial_state
     for char in token:
         state = FA.MakeTransition(state, char)
 
-    if not FA.IsFinal(state) or state == error_state:
+    if state == error_state or not FA.IsFinal(state):
         print('Lexical error! State:', state)
     else:
         print('Correct! State:', state)

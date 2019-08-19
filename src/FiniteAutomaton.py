@@ -4,9 +4,8 @@ class FiniteAutomaton(object):
     # Default settings
     __INITIAL_STATE   = 0
     __ERROR_STATE     = -1
-    __RESERVED_STATES = [__ERROR_STATE]
     __ALPHABET        = []
-    __STATES_COUNT    = 0
+    __NEXT_NEW_STATE    = -1
     __FA              = {}
     # Folders
     __INPUTS_FOLDER  = "set"
@@ -22,11 +21,12 @@ class FiniteAutomaton(object):
             # Creating error_state
             self.__CreateState(self.__ERROR_STATE, True)
             # Mapping transitions
-            self.__MapTokens()
             self.__MapGrammatics()
+            self.__MapTokens()
             # Handling with erros
             self.__RemoveEpslonTransitions()
             self.__Determinize()
+            # Removing useless
             #self.__RemoveUnreachebleStates()
             #self.__RemoveDeadStates()
             # Saving to file
@@ -48,18 +48,21 @@ class FiniteAutomaton(object):
     
     def __GetAvailableState(self, state=None):
         if state is None:
-            state = self.__STATES_COUNT-1
+            state = self.__NEXT_NEW_STATE
         else:
             state += 1
-        while state in self.__RESERVED_STATES:
-            state += 1
+        try:
+            while self.__FA[state]['final']:
+                state += 1
+        except:
+            pass
         return state
 
     def __CreateState(self, state, final=False, parents=[]):
         # Checking if the state already exists in the FA
         if not state in self.__FA:
             self.__FA[state] = {'final': final, 'parents': parents}
-            self.__STATES_COUNT += 1
+            self.__NEXT_NEW_STATE += 1
             for char in self.__ALPHABET:
                 self.__FA[state][char] = self.__ERROR_STATE
         elif not self.__FA[state]['final']:
@@ -80,7 +83,7 @@ class FiniteAutomaton(object):
             if type(self.__FA[state][char]) is list:
                 if next_state not in self.__FA[state][char]:
                     self.__FA[state][char].append(next_state)
-            else:
+            elif next_state != self.__ERROR_STATE:
                 self.__FA[state][char] = [self.__FA[state][char], next_state]
     
     def __MapTokens(self):
@@ -98,14 +101,14 @@ class FiniteAutomaton(object):
                     self.__AppendCharacter(char)
                     # Creating state if does not exists
                     self.__CreateState(state)
-                    # Getting an availabe next_state
-                    next_state = self.__GetAvailableState(state)
                     # Creating next_state if does not exists
+                    next_state = None
                     if i < token_length-1:
+                        next_state = self.__GetAvailableState(state)
                         self.__CreateState(next_state)
                     else:
+                        next_state = self.__GetAvailableState()
                         self.__CreateState(next_state, True)
-                        self.__RESERVED_STATES.append(next_state)
                     # Creating the transition
                     self.__CreateTransition(state, char, next_state)
                     # Updating state
@@ -126,6 +129,7 @@ class FiniteAutomaton(object):
 
                 self.__CreateState(state)
                 for p in productions:
+                    # Getting transition and character, if exists
                     char = ''
                     next_state = None
                     is_char = True
@@ -178,82 +182,86 @@ class FiniteAutomaton(object):
                 self.__CheckEpslon(state)
                 del self.__FA[state]['']
             self.__ALPHABET.remove('')
+    
+    def __GetStateByParents(self, parents):
+        for state in self.__FA:
+            if self.__FA[state]['parents'] == parents:
+                return state
 
     def __DeterminizeState(self, state):
         for char in self.__ALPHABET:
             # Verifying if this transition is not determinized
             next_states = self.__FA[state][char]
             if type(next_states) is list:
-                for s in next_states:
-                    # Removing states already included
-                    if s in self.__FA[state]['parents']:
-                        try:
-                            next_states.remove(s)
-                        except:
-                            pass
-                # Verifying if this transition keep not determinized
-                if len(next_states) > 1:
-                    # Creating a new_state with all transitions
-                    new_state = self.__GetAvailableState()
-                    self.__CreateState(new_state, parents=next_states)
-                    for next_state in next_states:
-                        self.__MergeStates(new_state, next_state)
-                    # Updating the transition with the new_state
-                    self.__FA[state][char] = new_state
-                    # Determinizing the new_state
-                    self.__DeterminizeState(new_state)
-                # If there is only one state in this transition, this is already determinized
-                elif len(next_states) == 1:
+                next_states = next_states.copy()
+                # Removing states already included
+                for parent in self.__FA[state]['parents']:
+                    if parent in next_states:
+                        next_states.remove(parent)
+                # If the transition has only one state, keep this one
+                if len(next_states) == 1:
                     self.__FA[state][char] = next_states[0]
+                elif len(next_states) == 0 and self.__FA[state][char] == self.__FA[state]['parents']:
+                    self.__FA[state][char] = state
+                # Determinizing state
+                else:
+                    # Getting the parents states
+                    parents = []
+                    for next_state in next_states:
+                        if next_state not in parents:
+                            parents.append(next_state)
+                    # Getting a state with these parents
+                    new_state = self.__GetStateByParents(parents)
+                    if new_state is not None:
+                        self.__FA[state][char] = new_state
+                    # Creating a new_state with all transitions
+                    else:
+                        new_state = self.__GetAvailableState()
+                        self.__FA[state][char] = new_state
+                        self.__CreateState(new_state, parents=parents)
+                        for next_state in next_states:
+                            self.__MergeStates(new_state, next_state)
+                        # Determinizing the new_state
+                        self.__DeterminizeState(new_state)
 
     def __Determinize(self):
         FA = self.__FA.copy()
         for state in FA:
             self.__DeterminizeState(state)
     
-    """''' Methods of 5th step '''
     def __GetReachebleStates(self, initial_state=__INITIAL_STATE):
         reacheble = [initial_state]
         verified = []
         # Verifying all reacheble states
         for state in reacheble:
-            for char in self.__FA[state]:
+            for char in self.__ALPHABET:
                 next_state = self.__FA[state][char]
-                if char != self.__IS_FINAL and next_state and not state in verified and not next_state in reacheble:
+                if next_state and not state in verified and not next_state in reacheble:
                     reacheble.append(next_state)
             if not state in verified:
                 verified.append(state)
         return reacheble
     
-    def __RemoveUnreacheble(self):
+    def __RemoveUnreachebleStates(self):
         reacheble = self.__GetReachebleStates()
         # Removing unreacheble states
         for state in self.__FA.copy():
             if not state in reacheble:
                 del self.__FA[state]
     
-    def __RemoveDead(self):
+    def __RemoveDeadStates(self):
         # Getting all final states
         for state in self.__FA.copy():
-            if not self.__FA[state][self.__IS_FINAL]:
+            if not self.__FA[state]['final']:
                 reacheble = self.__GetReachebleStates(state)
                 dead = True
                 for next_state in reacheble:
-                    if dead and self.__FA[next_state][self.__IS_FINAL]:
+                    if dead and self.__FA[next_state]['final']:
                         dead = False
                 if dead:
                     print(state, ' is dead!')
                     del self.__FA[state]
-        
-    ''' Methods of 6th step '''
-    def __MapErrorState(self):
-        self.__AddState(self.__ERROR_STATE, True)
-        for state in self.__FA:
-            for char in self.__FA[state]:
-                if not self.__FA[state][char] and char != self.__IS_FINAL:
-                    self.__FA[state][char] = self.__ERROR_STATE"""
 
-    ''' Methods for test '''
     def Show(self):
         for state, value in self.__FA.items():
             print(state, '->', value, '\n')
@@ -267,8 +275,12 @@ class FiniteAutomaton(object):
     def MakeTransition(self, state, char):
         try:
             return self.__FA[state][char]
-        except:
+        except KeyError:
             return self.__ERROR_STATE
     
     def IsFinal(self, state):
-        return self.__FA[state]['final']
+        try:
+            is_final = self.__FA[state]['final']
+        except KeyError:
+            is_final = False
+        return is_final

@@ -1,12 +1,13 @@
-a é inteiro
-b é inteiro
-c é inteiro
-
-a recebe um
-b recebe três
-
-c recebe a mais b
-
-se c é oito ou c é menor que zero, então
-    c recebe quatro
-ou se c é 
+if
+it
+elseif
+else
+while
+for
+switch
+case
+import
+define
+new
+and
+or
