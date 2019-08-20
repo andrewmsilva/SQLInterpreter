@@ -1,13 +1,14 @@
-if
-it
-elseif
-else
-while
-for
-switch
-case
-import
-define
-new
-and
-or
+a = 1
+b = 2
+c = a+b
+
+s1 = 0
+s2 = 0
+while s < 10
+    s += c++
+    s += ++c
+
+list = 0 to 10
+for i in list
+    if i > 5
+        list[i] -= 5

@@ -5,7 +5,7 @@ class FiniteAutomaton(object):
     __INITIAL_STATE   = 0
     __ERROR_STATE     = -1
     __ALPHABET        = []
-    __NEXT_NEW_STATE    = -1
+    __NEXT_NEW_STATE  = 0
     __FA              = {}
     # Folders
     __INPUTS_FOLDER  = "set"
@@ -15,11 +15,9 @@ class FiniteAutomaton(object):
     __GRAMMATICS_FILE = "grammatics.txt"
     __RESULTS_FILE    = "finite_automaton.bin"
 
-    def __init__(self):
+    def __init__(self, save=True):
         # Trying to load an already created Finite Automaton
         if not self.__Load():
-            # Creating error_state
-            self.__CreateState(self.__ERROR_STATE, True)
             # Mapping transitions
             self.__MapGrammatics()
             self.__MapTokens()
@@ -27,10 +25,13 @@ class FiniteAutomaton(object):
             self.__RemoveEpslonTransitions()
             self.__Determinize()
             # Removing useless
-            #self.__RemoveUnreachebleStates()
-            #self.__RemoveDeadStates()
+            self.__RemoveUnreachebleStates()
+            self.__RemoveDeadStates()
+            # Mapping error state
+            self.__MapErrorState()
             # Saving to file
-            #self.__Save()
+            if save:
+                self.__Save()
 
     def __Load(self):
         try:
@@ -64,7 +65,7 @@ class FiniteAutomaton(object):
             self.__FA[state] = {'final': final, 'parents': parents}
             self.__NEXT_NEW_STATE += 1
             for char in self.__ALPHABET:
-                self.__FA[state][char] = self.__ERROR_STATE
+                self.__FA[state][char] = []
         elif not self.__FA[state]['final']:
             self.__FA[state]['final'] = final
 
@@ -73,18 +74,13 @@ class FiniteAutomaton(object):
         if not char in self.__ALPHABET:
             self.__ALPHABET.append(char)
             for state in self.__FA:
-                self.__FA[state][char] = self.__ERROR_STATE
+                self.__FA[state][char] = []
 
     def __CreateTransition(self, state, char, next_state):
         # Checking if the next_state already exists in the FA for the state and character
-        if self.__FA[state][char] == self.__ERROR_STATE:
-            self.__FA[state][char] = next_state
-        elif self.__FA[state][char] != next_state:
-            if type(self.__FA[state][char]) is list:
-                if next_state not in self.__FA[state][char]:
-                    self.__FA[state][char].append(next_state)
-            elif next_state != self.__ERROR_STATE:
-                self.__FA[state][char] = [self.__FA[state][char], next_state]
+        if type(self.__FA[state][char]) == list:
+            if next_state not in self.__FA[state][char]:
+                self.__FA[state][char].append(next_state)
     
     def __MapTokens(self):
         try:
@@ -163,18 +159,14 @@ class FiniteAutomaton(object):
         # Merging states for each character
         for char in self.__ALPHABET:
             states = self.__FA[next_state][char]
-            if type(states) is list:
-                for s in states:
-                    self.__CreateTransition(state, char, s)
-            else:
-                self.__CreateTransition(state, char, states)
+            for s in states:
+                self.__CreateTransition(state, char, s)
 
     def __CheckEpslon(self, state):
-        if type(self.__FA[state]['']) is list:
-            for next_state in self.__FA[state]['']:
-                self.__CheckEpslon(next_state)
-                self.__MergeStates(state, next_state)
-                self.__FA[state][''] = None
+        for next_state in self.__FA[state]['']:
+            self.__CheckEpslon(next_state)
+            self.__MergeStates(state, next_state)
+            self.__FA[state][''] = []
 
     def __RemoveEpslonTransitions(self):
         if '' in self.__ALPHABET:
@@ -192,37 +184,42 @@ class FiniteAutomaton(object):
         for char in self.__ALPHABET:
             # Verifying if this transition is not determinized
             next_states = self.__FA[state][char]
-            if type(next_states) is list:
-                next_states = next_states.copy()
-                # Removing states already included
-                for parent in self.__FA[state]['parents']:
-                    if parent in next_states:
-                        next_states.remove(parent)
-                # If the transition has only one state, keep this one
+            if type(next_states) == list:
                 if len(next_states) == 1:
                     self.__FA[state][char] = next_states[0]
-                elif len(next_states) == 0 and self.__FA[state][char] == self.__FA[state]['parents']:
-                    self.__FA[state][char] = state
-                # Determinizing state
+                elif len(next_states) == 0:
+                    self.__FA[state][char] = None
                 else:
-                    # Getting the parents states
-                    parents = []
-                    for next_state in next_states:
-                        if next_state not in parents:
-                            parents.append(next_state)
-                    # Getting a state with these parents
-                    new_state = self.__GetStateByParents(parents)
-                    if new_state is not None:
-                        self.__FA[state][char] = new_state
-                    # Creating a new_state with all transitions
+                    next_states = next_states.copy()
+                    # Removing states already included
+                    for parent in self.__FA[state]['parents']:
+                        if parent in next_states:
+                            next_states.remove(parent)
+                    # If the transition has only one state, keep this one
+                    if len(next_states) == 1:
+                        self.__FA[state][char] = next_states[0]
+                    elif len(next_states) == 0 and self.__FA[state][char] == self.__FA[state]['parents']:
+                        self.__FA[state][char] = state
+                    # Determinizing state
                     else:
-                        new_state = self.__GetAvailableState()
-                        self.__FA[state][char] = new_state
-                        self.__CreateState(new_state, parents=parents)
+                        # Getting the parents states
+                        parents = []
                         for next_state in next_states:
-                            self.__MergeStates(new_state, next_state)
-                        # Determinizing the new_state
-                        self.__DeterminizeState(new_state)
+                            if next_state not in parents:
+                                parents.append(next_state)
+                        # Getting a state with these parents
+                        new_state = self.__GetStateByParents(parents)
+                        if new_state is not None:
+                            self.__FA[state][char] = new_state
+                        # Creating a new_state with all transitions
+                        else:
+                            new_state = self.__GetAvailableState()
+                            self.__FA[state][char] = new_state
+                            self.__CreateState(new_state, parents=parents)
+                            for next_state in next_states:
+                                self.__MergeStates(new_state, next_state)
+                            # Determinizing the new_state
+                            self.__DeterminizeState(new_state)
 
     def __Determinize(self):
         FA = self.__FA.copy()
@@ -261,6 +258,13 @@ class FiniteAutomaton(object):
                 if dead:
                     print(state, ' is dead!')
                     del self.__FA[state]
+    
+    def __MapErrorState(self):
+        self.__CreateState(self.__ERROR_STATE, final=True)
+        for state in self.__FA:
+            for char in self.__ALPHABET:
+                if self.__FA[state][char] is None or type(self.__FA[state][char]) == list:
+                    self.__FA[state][char] = self.__ERROR_STATE
 
     def Show(self):
         for state, value in self.__FA.items():
