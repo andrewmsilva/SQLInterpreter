@@ -8,8 +8,8 @@ class FiniteAutomaton(object):
     __NEXT_NEW_STATE  = 0
     __FA              = {}
     # Folders
-    __INPUTS_FOLDER  = "set"
-    __RESULTS_FOLDER = "bin"
+    _INPUTS_FOLDER  = "set"
+    _RESULTS_FOLDER = "bin"
     # Files
     __TOKENS_FILE     = "tokens.txt"
     __GRAMMATICS_FILE = "grammatics.txt"
@@ -35,7 +35,7 @@ class FiniteAutomaton(object):
 
     def __Load(self):
         try:
-            file = open(self.__RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'rb')
+            file = open(self._RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'rb')
             self.__FA = pickle.load(file)
             file.close()
             return True
@@ -43,7 +43,7 @@ class FiniteAutomaton(object):
             return False
     
     def __Save(self):
-        file = open(self.__RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'wb')
+        file = open(self._RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'wb')
         pickle.dump(self.__FA, file)
         file.close()
     
@@ -84,7 +84,7 @@ class FiniteAutomaton(object):
     
     def __MapTokens(self):
         try:
-            file = open(self.__INPUTS_FOLDER+'/'+self.__TOKENS_FILE, 'r')
+            file = open(self._INPUTS_FOLDER+'/'+self.__TOKENS_FILE, 'r')
             for token in file:
                 # Settings
                 token        = token.replace('\n', '')
@@ -115,7 +115,7 @@ class FiniteAutomaton(object):
     
     def __MapGrammatics(self):
         try:
-            file = open(self.__INPUTS_FOLDER+'/'+self.__GRAMMATICS_FILE, 'r')
+            file = open(self._INPUTS_FOLDER+'/'+self.__GRAMMATICS_FILE, 'r')
             for grammatic in file:
                 # Splitting state and its productions
                 grammatic = grammatic.replace('\n', '')
@@ -159,8 +159,12 @@ class FiniteAutomaton(object):
         # Merging states for each character
         for char in self.__ALPHABET:
             states = self.__FA[next_state][char]
-            for s in states:
-                self.__CreateTransition(state, char, s)
+            if type(states) is list:
+                for s in states:
+                    self.__CreateTransition(state, char, s)
+            elif type(states) is int:
+                self.__CreateTransition(state, char, states)
+
 
     def __CheckEpslon(self, state):
         for next_state in self.__FA[state]['']:

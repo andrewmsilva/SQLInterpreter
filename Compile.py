@@ -1,3 +1,3 @@
-import src.Lexical as lx
+from src.LexicalAnalyzer import LexicalAnalyzer
 
-lx.Analyze('ignore')
+symbol_table = LexicalAnalyzer('the.game')
