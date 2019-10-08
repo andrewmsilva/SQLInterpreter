@@ -18,7 +18,6 @@ class LexicalAnalyzer(FiniteAutomaton):
         # Analyze source code
         try:
             self.__Analyze()
-            return self.__SYMBOL_TABLE
         except Exception as e:
             print(e)
             return None
@@ -45,36 +44,39 @@ class LexicalAnalyzer(FiniteAutomaton):
         initial_state = self.GetInitialState()
         error_state = self.GetErrorState()
         # Initializing
-        token_begin = None
+        token = ''
         state = initial_state
         line_count = 0
         # Reading lines
         for line in self.__SOURCE_CODE:
             line_count += 1
+            identate = True
+            identation = 0
             # Reading chars
             for i in range(len(line)):
                 char = line[i]
+                # Getting identation
+                if char != '\t':
+                    identate = False
+                elif identate:
+                    identation += 1
                 # Making the transition if the char is not a separator
                 if char not in self.__SEPARATORS:
-                    if token_begin is None:
-                        token_begin = i
+                    token += char
                     state = self.MakeTransition(state, char)
                 # Handling the readed token
-                else:
-                    token = line[token_begin:i]
-                    token_begin = None
-                    i -= 1
+                elif token != '':
                     # Changing to error state if the token state is not final
                     if not self.IsFinal(state):
                         state = error_state
-                        print('Lexical error: "%s" in line %d' %(token, line_count))
+                        print('Lexical error: "%s" in line %d:%d' %(token, line_count, i))
                     # Appending token to the output tape if it is recognized
                     else:
                         self.__OUTPUT_TAPE = token + self.__OUTPUT_TAPE
                     # Appending token to the symbol table
                     self.__SYMBOL_TABLE.append({
                         'line': line_count,
-                        'identation': None, # To do
+                        'identation': identation,
                         'state': state,
                         'label': token
                     })
