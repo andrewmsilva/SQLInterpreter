@@ -4,6 +4,7 @@ class LexicalAnalyzer(FiniteAutomaton):
     # Settings
     __SEPARATORS   = [' ', '\n', '\t']
     __SYMBOL_TABLE = [] # List of dicts, each one with line, indentation_level, final_state and label
+    __OUTPUT_TAPE = '$'
     __SOURCE_CODE  = None
     # Files
     _SEPARATORS_FILE = 'separators.txt'
@@ -40,20 +41,48 @@ class LexicalAnalyzer(FiniteAutomaton):
             return False
 
     def __Analyze(self):
-        """
-            OVERWRITE THE CODE BELOW WITH THE TRUE LEXICAL ANALYZER,
-            WICH NEED TO READ EACH LINE AND EACH CHAR OF self.__SOURCE_CODE
-            AND BUILD THE SYMBOL TABLE
-        """
+        # Getting important states
         initial_state = self.GetInitialState()
         error_state = self.GetErrorState()
-        while True:
-            token = input('enter a token: ')
-            state = initial_state
-            for char in token:
-                state = self.MakeTransition(state, char)
-
-            if state == error_state or not self.IsFinal(state):
-                print('Lexical error! State:', state)
-            else:
-                print('Correct! State:', state)
+        # Initializing
+        token_begin = None
+        state = initial_state
+        line_count = 0
+        # Reading lines
+        for line in self.__SOURCE_CODE:
+            line_count += 1
+            # Reading chars
+            for i in range(len(line)):
+                char = line[i]
+                # Making the transition if the char is not a separator
+                if char not in self.__SEPARATORS:
+                    if token_begin is None:
+                        token_begin = i
+                    state = self.MakeTransition(state, char)
+                # Handling the readed token
+                else:
+                    token = line[token_begin:i]
+                    token_begin = None
+                    i -= 1
+                    # Changing to error state if the token state is not final
+                    if not self.IsFinal(state):
+                        state = error_state
+                        print('Lexical error: "%s" in line %d' %(token, line_count))
+                    # Appending token to the output tape if it is recognized
+                    else:
+                        self.__OUTPUT_TAPE = token + self.__OUTPUT_TAPE
+                    # Appending token to the symbol table
+                    self.__SYMBOL_TABLE.append({
+                        'line': line_count,
+                        'identation': None, # To do
+                        'state': state,
+                        'label': token
+                    })
+                    # Reseting token and state
+                    token = ''
+                    state = initial_state
+        
+        # Printing result
+        print(self.__OUTPUT_TAPE)
+        for line in self.__SYMBOL_TABLE:
+            print(line)
