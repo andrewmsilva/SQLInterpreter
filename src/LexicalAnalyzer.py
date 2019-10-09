@@ -53,8 +53,7 @@ class LexicalAnalyzer(FiniteAutomaton):
             identate = True
             identation = 0
             # Reading chars
-            for i in range(len(line)):
-                char = line[i]
+            for char in line:
                 # Getting identation
                 if char != '\t':
                     identate = False
@@ -69,10 +68,9 @@ class LexicalAnalyzer(FiniteAutomaton):
                     # Changing to error state if the token state is not final
                     if not self.IsFinal(state):
                         state = error_state
-                        print('Lexical error: "%s" in line %d:%d' %(token, line_count, i))
                     # Appending token to the output tape if it is recognized
                     else:
-                        self.__OUTPUT_TAPE = token + self.__OUTPUT_TAPE
+                        self.__OUTPUT_TAPE += token
                     # Appending token to the symbol table
                     self.__SYMBOL_TABLE.append({
                         'line': line_count,
@@ -80,6 +78,9 @@ class LexicalAnalyzer(FiniteAutomaton):
                         'state': state,
                         'label': token
                     })
+                    # Showing error message if necessary
+                    if state == error_state:
+                        print('Lexical error: "%s" in line %d:%d' %(token, line_count, i))
                     # Reseting token and state
                     token = ''
                     state = initial_state

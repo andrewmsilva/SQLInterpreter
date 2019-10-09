@@ -1,8 +1,3 @@
-int
-float
-str
-bool
-list
 if
 else
 while
@@ -22,6 +17,8 @@ FALSE
 /
 ^
 =
++=
+-=
 >
 <
 >=
