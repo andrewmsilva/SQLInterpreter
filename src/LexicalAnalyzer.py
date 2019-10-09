@@ -49,16 +49,22 @@ class LexicalAnalyzer(FiniteAutomaton):
         line_count = 0
         # Reading lines
         for line in self.__SOURCE_CODE:
+            if '\n' not in line:
+                line += '\n'
             line_count += 1
             identate = True
             identation = 0
             # Reading chars
-            for char in line:
+            for i in range(len(line)):
+                char = line[i]
+                if line_count is 19:
+                    print(char)
                 # Getting identation
-                if char != '\t':
-                    identate = False
-                elif identate:
-                    identation += 1
+                if identate:
+                    if char != '\t':
+                        identate = False
+                    elif identate:
+                        identation += 1
                 # Making the transition if the char is not a separator
                 if char not in self.__SEPARATORS:
                     token += char
@@ -74,6 +80,7 @@ class LexicalAnalyzer(FiniteAutomaton):
                     # Appending token to the symbol table
                     self.__SYMBOL_TABLE.append({
                         'line': line_count,
+                        'column': i,
                         'identation': identation,
                         'state': state,
                         'label': token
