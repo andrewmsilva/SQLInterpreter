@@ -57,8 +57,6 @@ class LexicalAnalyzer(FiniteAutomaton):
             # Reading chars
             for i in range(len(line)):
                 char = line[i]
-                if line_count is 19:
-                    print(char)
                 # Getting identation
                 if identate:
                     if char != '\t':
