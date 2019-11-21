@@ -52,17 +52,9 @@ class LexicalAnalyzer(FiniteAutomaton):
             if '\n' not in line:
                 line += '\n'
             line_count += 1
-            identate = True
-            identation = 0
             # Reading chars
-            for i in range(len(line)):
-                char = line[i]
-                # Getting identation
-                if identate:
-                    if char != '\t':
-                        identate = False
-                    elif identate:
-                        identation += 1
+            for column in range(len(line)):
+                char = line[column]
                 # Making the transition if the char is not a separator
                 if char not in self.__SEPARATORS:
                     token += char
@@ -78,14 +70,13 @@ class LexicalAnalyzer(FiniteAutomaton):
                     # Appending token to the symbol table
                     self.__SYMBOL_TABLE.append({
                         'line': line_count,
-                        'column': i,
-                        'identation': identation,
+                        'column': column,
                         'state': state,
                         'label': token
                     })
                     # Showing error message if necessary
                     if state == error_state:
-                        print('Lexical error: "%s" in line %d:%d' %(token, line_count, i))
+                        print('Lexical error in %d.%d: %s' %(line_count, column, token))
                     # Reseting token and state
                     token = ''
                     state = initial_state
