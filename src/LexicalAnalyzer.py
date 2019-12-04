@@ -27,6 +27,8 @@ class LexicalAnalyzer(FiniteAutomaton):
         # Initializing
         output = '$'
         symbol_table = []
+        if string == '':
+            return output, symbol_table
         if string[-1] != '\n':
             string += '\n'
         # Reading chars
@@ -45,7 +47,7 @@ class LexicalAnalyzer(FiniteAutomaton):
                     state = error_state
                 # Appending token to the output tape if it is recognized
                 else:
-                    output += token
+                    output += ' ' + token
                 # Appending token to the symbol table
                 symbol_table.append({
                     'column': column,
