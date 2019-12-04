@@ -17,23 +17,23 @@ class FiniteAutomaton(object):
 
     def __init__(self, save=True):
         # Trying to load an already created Finite Automaton
-        if not self.__Load():
+        if not self.__load():
             # Mapping transitions
-            self.__MapGrammatics()
-            self.__MapTokens()
+            self.__mapGrammatics()
+            self.__mapTokens()
             # Handling with erros
-            self.__RemoveEpslonTransitions()
-            self.__Determinize()
+            self.__removeEpslonTransitions()
+            self.__determinize()
             # Removing useless
-            self.__RemoveUnreachebleStates()
-            self.__RemoveDeadStates()
+            self.__removeUnreachebleStates()
+            self.__removeDeadStates()
             # Mapping error state
-            self.__MapErrorState()
+            self.__mapErrorState()
             # Saving to file
             if save:
-                self.__Save()
+                self.__save()
 
-    def __Load(self):
+    def __load(self):
         try:
             file = open(self._RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'rb')
             self.__FA = pickle.load(file)
@@ -42,12 +42,12 @@ class FiniteAutomaton(object):
         except:
             return False
     
-    def __Save(self):
+    def __save(self):
         file = open(self._RESULTS_FOLDER+'/'+self.__RESULTS_FILE, 'wb')
         pickle.dump(self.__FA, file)
         file.close()
     
-    def __GetAvailableState(self, state=None):
+    def __getAvailableState(self, state=None):
         if state is None:
             state = self.__NEXT_NEW_STATE
         else:
@@ -59,7 +59,7 @@ class FiniteAutomaton(object):
             pass
         return state
 
-    def __CreateState(self, state, final=False, parents=[]):
+    def __createState(self, state, final=False, parents=[]):
         # Checking if the state already exists in the FA
         if not state in self.__FA:
             self.__FA[state] = {'final': final, 'parents': parents}
@@ -69,20 +69,20 @@ class FiniteAutomaton(object):
         elif not self.__FA[state]['final']:
             self.__FA[state]['final'] = final
 
-    def __AppendCharacter(self, char):
+    def __appendCharacter(self, char):
         # Checking if the character already exists in the ALPHABET
         if not char in self.__ALPHABET:
             self.__ALPHABET.append(char)
             for state in self.__FA:
                 self.__FA[state][char] = []
 
-    def __CreateTransition(self, state, char, next_state):
+    def __createTransition(self, state, char, next_state):
         # Checking if the next_state already exists in the FA for the state and character
         if type(self.__FA[state][char]) == list:
             if next_state not in self.__FA[state][char]:
                 self.__FA[state][char].append(next_state)
     
-    def __MapTokens(self):
+    def __mapTokens(self):
         try:
             file = open(self._INPUTS_FOLDER+'/'+self.__TOKENS_FILE, 'r')
             for token in file:
@@ -94,26 +94,26 @@ class FiniteAutomaton(object):
                 for i in range(token_length):
                     char = token[i]
                     # Appending character to the alphabet
-                    self.__AppendCharacter(char)
+                    self.__appendCharacter(char)
                     # Creating state if does not exists
-                    self.__CreateState(state)
+                    self.__createState(state)
                     # Creating next_state if does not exists
                     next_state = None
                     if i < token_length-1:
-                        next_state = self.__GetAvailableState(state)
-                        self.__CreateState(next_state)
+                        next_state = self.__getAvailableState(state)
+                        self.__createState(next_state)
                     else:
-                        next_state = self.__GetAvailableState()
-                        self.__CreateState(next_state, True)
+                        next_state = self.__getAvailableState()
+                        self.__createState(next_state, True)
                     # Creating the transition
-                    self.__CreateTransition(state, char, next_state)
+                    self.__createTransition(state, char, next_state)
                     # Updating state
                     state = next_state
         except:
             # Doing nothing if the file with tokens does not exists
             pass
     
-    def __MapGrammatics(self):
+    def __mapGrammatics(self):
         try:
             file = open(self._INPUTS_FOLDER+'/'+self.__GRAMMATICS_FILE, 'r')
             for grammatic in file:
@@ -123,7 +123,7 @@ class FiniteAutomaton(object):
                 productions = productions.split('|')
                 state = int(state.replace('<', '').replace('>', ''))
 
-                self.__CreateState(state)
+                self.__createState(state)
                 for p in productions:
                     # Getting transition and character, if exists
                     char = ''
@@ -140,19 +140,19 @@ class FiniteAutomaton(object):
                             next_state += c
                         else:
                             char = c
-                    self.__AppendCharacter(char)
+                    self.__appendCharacter(char)
                     # Checking if this production is final
                     if next_state:
                         next_state = int(next_state.replace('<', '').replace('>', ''))
-                        self.__CreateState(next_state)
-                        self.__CreateTransition(state, char, next_state)
+                        self.__createState(next_state)
+                        self.__createTransition(state, char, next_state)
                     else:
                         self.__FA[state]['final'] = True
         except:
             # Doing nothing if the file with tokens does not exists
             pass
 
-    def __MergeStates(self, state, next_state):
+    def __mergeStates(self, state, next_state):
         # Checking if the next_state is a final state
         if self.__FA[next_state]['final']:
             self.__FA[state]['final'] = True
@@ -161,30 +161,30 @@ class FiniteAutomaton(object):
             states = self.__FA[next_state][char]
             if type(states) is list:
                 for s in states:
-                    self.__CreateTransition(state, char, s)
+                    self.__createTransition(state, char, s)
             elif type(states) is int:
-                self.__CreateTransition(state, char, states)
+                self.__createTransition(state, char, states)
 
 
-    def __CheckEpslon(self, state):
+    def __checkEpslon(self, state):
         for next_state in self.__FA[state]['']:
-            self.__CheckEpslon(next_state)
-            self.__MergeStates(state, next_state)
+            self.__checkEpslon(next_state)
+            self.__mergeStates(state, next_state)
             self.__FA[state][''] = []
 
-    def __RemoveEpslonTransitions(self):
+    def __removeEpslonTransitions(self):
         if '' in self.__ALPHABET:
             for state in self.__FA:
-                self.__CheckEpslon(state)
+                self.__checkEpslon(state)
                 del self.__FA[state]['']
             self.__ALPHABET.remove('')
     
-    def __GetStateByParents(self, parents):
+    def __getStateByParents(self, parents):
         for state in self.__FA:
             if self.__FA[state]['parents'] == parents:
                 return state
 
-    def __DeterminizeState(self, state):
+    def __determinizeState(self, state):
         for char in self.__ALPHABET:
             # Verifying if this transition is not determinized
             next_states = self.__FA[state][char]
@@ -212,25 +212,25 @@ class FiniteAutomaton(object):
                             if next_state not in parents:
                                 parents.append(next_state)
                         # Getting a state with these parents
-                        new_state = self.__GetStateByParents(parents)
+                        new_state = self.__getStateByParents(parents)
                         if new_state is not None:
                             self.__FA[state][char] = new_state
                         # Creating a new_state with all transitions
                         else:
-                            new_state = self.__GetAvailableState()
+                            new_state = self.__getAvailableState()
                             self.__FA[state][char] = new_state
-                            self.__CreateState(new_state, parents=parents)
+                            self.__createState(new_state, parents=parents)
                             for next_state in next_states:
-                                self.__MergeStates(new_state, next_state)
+                                self.__mergeStates(new_state, next_state)
                             # Determinizing the new_state
-                            self.__DeterminizeState(new_state)
+                            self.__determinizeState(new_state)
 
-    def __Determinize(self):
+    def __determinize(self):
         FA = self.__FA.copy()
         for state in FA:
-            self.__DeterminizeState(state)
+            self.__determinizeState(state)
     
-    def __GetReachebleStates(self, initial_state=__INITIAL_STATE):
+    def __getReachebleStates(self, initial_state=__INITIAL_STATE):
         reacheble = [initial_state]
         verified = []
         # Verifying all reacheble states
@@ -243,18 +243,18 @@ class FiniteAutomaton(object):
                 verified.append(state)
         return reacheble
     
-    def __RemoveUnreachebleStates(self):
-        reacheble = self.__GetReachebleStates()
+    def __removeUnreachebleStates(self):
+        reacheble = self.__getReachebleStates()
         # Removing unreacheble states
         for state in self.__FA.copy():
             if not state in reacheble:
                 del self.__FA[state]
     
-    def __RemoveDeadStates(self):
+    def __removeDeadStates(self):
         # Getting all final states
         for state in self.__FA.copy():
             if not self.__FA[state]['final']:
-                reacheble = self.__GetReachebleStates(state)
+                reacheble = self.__getReachebleStates(state)
                 dead = True
                 for next_state in reacheble:
                     if dead and self.__FA[next_state]['final']:
@@ -263,30 +263,30 @@ class FiniteAutomaton(object):
                     print(state, ' is dead!')
                     del self.__FA[state]
     
-    def __MapErrorState(self):
-        self.__CreateState(self.__ERROR_STATE, final=True)
+    def __mapErrorState(self):
+        self.__createState(self.__ERROR_STATE, final=True)
         for state in self.__FA:
             for char in self.__ALPHABET:
                 if self.__FA[state][char] is None or type(self.__FA[state][char]) == list:
                     self.__FA[state][char] = self.__ERROR_STATE
 
-    def Show(self):
+    def show(self):
         for state, value in self.__FA.items():
             print(state, '->', value, '\n')
     
-    def GetInitialState(self):
+    def getInitialState(self):
         return self.__INITIAL_STATE
     
-    def GetErrorState(self):
+    def getErrorState(self):
         return self.__ERROR_STATE
     
-    def MakeTransition(self, state, char):
+    def makeTransition(self, state, char):
         try:
             return self.__FA[state][char]
         except KeyError:
             return self.__ERROR_STATE
     
-    def IsFinal(self, state):
+    def isFinal(self, state):
         try:
             is_final = self.__FA[state]['final']
         except KeyError:

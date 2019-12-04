@@ -3,26 +3,14 @@ from src.FiniteAutomaton import FiniteAutomaton
 class LexicalAnalyzer(FiniteAutomaton):
     # Settings
     __SEPARATORS   = [' ', '\n', '\t']
-    __SYMBOL_TABLE = [] # List of dicts, each one with line, indentation_level, final_state and label
-    __OUTPUT_TAPE = '$'
-    __SOURCE_CODE  = None
     # Files
     _SEPARATORS_FILE = 'separators.txt'
     
-    def __init__(self, source_code):
+    def __init__(self):
         super().__init__(False)
-        # Load dependencies
-        self.__LoadSeparators()
-        if not self.__LoadSourceCode(source_code):
-            return None
-        # Analyze source code
-        try:
-            self.__Analyze()
-        except Exception as e:
-            print(e)
-            return None
+        self.__loadSeparators()
 
-    def __LoadSeparators(self):
+    def __loadSeparators(self):
         try:
             file = open(self._INPUTS_FOLDER+'/'+self._SEPARATORS_FILE, 'r')
             for separator in file:
@@ -31,57 +19,43 @@ class LexicalAnalyzer(FiniteAutomaton):
             file.close()
         except:
             pass
-    
-    def __LoadSourceCode(self, source_code):
-        try:
-            self.__SOURCE_CODE = open(source_code, 'r')
-            return True
-        except:
-            return False
 
-    def __Analyze(self):
+    def analyze(self, string):
         # Getting important states
-        initial_state = self.GetInitialState()
-        error_state = self.GetErrorState()
+        initial_state = self.getInitialState()
+        error_state = self.getErrorState()
         # Initializing
+        output = '$'
+        symbol_table = []
+        if string[-1] != '\n':
+            string += '\n'
+        # Reading chars
         token = ''
         state = initial_state
-        line_count = 0
-        # Reading lines
-        for line in self.__SOURCE_CODE:
-            if '\n' not in line:
-                line += '\n'
-            line_count += 1
-            # Reading chars
-            for column in range(len(line)):
-                char = line[column]
-                # Making the transition if the char is not a separator
-                if char not in self.__SEPARATORS:
-                    token += char
-                    state = self.MakeTransition(state, char)
-                # Handling the readed token
-                elif token != '':
-                    # Changing to error state if the token state is not final
-                    if not self.IsFinal(state):
-                        state = error_state
-                    # Appending token to the output tape if it is recognized
-                    else:
-                        self.__OUTPUT_TAPE += token
-                    # Appending token to the symbol table
-                    self.__SYMBOL_TABLE.append({
-                        'line': line_count,
-                        'column': column,
-                        'state': state,
-                        'label': token
-                    })
-                    # Showing error message if necessary
-                    if state == error_state:
-                        print('Lexical error in %d.%d: %s' %(line_count, column, token))
-                    # Reseting token and state
-                    token = ''
-                    state = initial_state
-        
-        # Printing result
-        print(self.__OUTPUT_TAPE)
-        for line in self.__SYMBOL_TABLE:
-            print(line)
+        for column in range(len(string)):
+            char = string[column]
+            # Making the transition if the char is not a separator
+            if char not in self.__SEPARATORS:
+                token += char
+                state = self.makeTransition(state, char)
+            # Handling the readed token
+            elif token != '':
+                # Changing to error state if the token state is not final
+                if not self.isFinal(state):
+                    state = error_state
+                # Appending token to the output tape if it is recognized
+                else:
+                    output += token
+                # Appending token to the symbol table
+                symbol_table.append({
+                    'column': column,
+                    'state': state,
+                    'label': token
+                })
+                # Showing error message if necessary
+                if state == error_state:
+                    print('Lexical error in %d from %s'%(column, string))
+                # Reseting token and state
+                token = ''
+                state = initial_state
+        return output, symbol_table
