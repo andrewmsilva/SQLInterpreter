@@ -34,6 +34,7 @@ class LexicalAnalyzer(FiniteAutomaton):
         # Reading chars
         token = ''
         state = initial_state
+        is_string = False
         for column in range(len(string)):
             char = string[column]
             # Making the transition if the char is not a separator
@@ -42,22 +43,29 @@ class LexicalAnalyzer(FiniteAutomaton):
                 state = self.makeTransition(state, char)
             # Handling the readed token
             elif token != '':
-                # Changing to error state if the token state is not final
-                if not self.isFinal(state):
-                    state = error_state
+                # Raising lexical error if the token state is either not final or a error state
+                if not self.isFinal(state) or state == error_state:
+                    print('Lexical error in column %d'%column)
                 # Appending token to the output tape if it is recognized
                 else:
                     output += ' ' + token
-                # Appending token to the symbol table
-                symbol_table.append({
-                    'column': column,
-                    'state': state,
-                    'label': token
-                })
-                # Showing error message if necessary
-                if state == error_state:
-                    print('Lexical error in %d from %s'%(column, string))
+                    symbol_table.append({
+                        'column': column,
+                        'state': state,
+                        'label': token
+                    })
                 # Reseting token and state
                 token = ''
                 state = initial_state
+            # Handling a possible token-separator
+            if char in self.__SEPARATORS:
+                separator_state = self.makeTransition(initial_state, char)
+                if self.isFinal(separator_state) and separator_state != error_state:
+                    output += ' ' + char
+                    symbol_table.append({
+                        'column': column,
+                        'state': separator_state,
+                        'label': char
+                    })
+
         return output, symbol_table

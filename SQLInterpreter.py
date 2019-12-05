@@ -4,4 +4,6 @@ lexical_analyzer = LexicalAnalyzer()
 
 def interpret(query):
     output, symbol_table = lexical_analyzer.analyze(query)
-    print(output, symbol_table)
+    print(output)
+    for symbol in symbol_table:
+      print(symbol)
