@@ -7,7 +7,7 @@ class LexicalAnalyzer(FiniteAutomaton):
     _SEPARATORS_FILE = 'separators.txt'
     
     def __init__(self):
-        super().__init__(False)
+        super().__init__()
         self.__loadSeparators()
 
     def __loadSeparators(self):

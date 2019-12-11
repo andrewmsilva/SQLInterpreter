@@ -13,7 +13,7 @@ class FiniteAutomaton(object):
     # Files
     __TOKENS_FILE     = "tokens.txt"
     __GRAMMATICS_FILE = "grammatics.txt"
-    __RESULTS_FILE    = "finite_automaton.bin"
+    __RESULTS_FILE    = "finiteAutomaton.bin"
 
     def __init__(self, save=True):
         # Trying to load an already created Finite Automaton
