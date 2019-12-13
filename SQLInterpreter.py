@@ -1,6 +1,6 @@
-from src.LexicalAnalyzer import LexicalAnalyzer
+from src.Lexer import Lexer
 
-lexical_analyzer = LexicalAnalyzer()
+lexical_analyzer = Lexer()
 
 def interpret(query):
     output, symbol_table = lexical_analyzer.analyze(query)

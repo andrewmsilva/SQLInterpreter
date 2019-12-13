@@ -1,6 +1,6 @@
-from src.FiniteAutomaton import FiniteAutomaton
+from src.FSM import FSM
 
-class LexicalAnalyzer(FiniteAutomaton):
+class Lexer(FSM):
     # Settings
     __SEPARATORS   = [' ', '\n', '\t']
     # Files
