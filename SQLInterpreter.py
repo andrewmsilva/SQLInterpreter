@@ -1,9 +1,10 @@
 from src.Lexer import Lexer
+from src.Parser import Parser
 
-lexical_analyzer = Lexer()
+lexer = Lexer()
+parser = Parser()
 
 def interpret(query):
-    output, symbol_table = lexical_analyzer.analyze(query)
-    print(output)
-    for symbol in symbol_table:
-      print(symbol)
+    output, symbol_table = lexer.analyze(query)
+    parser.parse(output)
+    

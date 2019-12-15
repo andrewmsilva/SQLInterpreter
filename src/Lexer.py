@@ -6,8 +6,8 @@ class Lexer(FSM):
     # Files
     _SEPARATORS_FILE = 'separators.txt'
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, save=True):
+        super().__init__(save)
         self.__loadSeparators()
 
     def __loadSeparators(self):
@@ -25,7 +25,7 @@ class Lexer(FSM):
         initial_state = self.getInitialState()
         error_state = self.getErrorState()
         # Initializing
-        output = '$'
+        output = ''
         symbol_table = []
         if string == '':
             return output, symbol_table
@@ -34,7 +34,7 @@ class Lexer(FSM):
         # Reading chars
         token = ''
         state = initial_state
-        is_string = False
+        is_string = False # For future implementation
         for column in range(len(string)):
             char = string[column]
             # Making the transition if the char is not a separator
@@ -68,4 +68,4 @@ class Lexer(FSM):
                         'label': char
                     })
 
-        return output, symbol_table
+        return output + ' $', symbol_table

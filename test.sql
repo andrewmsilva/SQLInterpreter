@@ -1,5 +1,1 @@
-create table user (
-	id int,
-	email varchar(50),
-	password char(50)
-);
+create table user (int id, varchar(50) email, varchar(50) password);
